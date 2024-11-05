@@ -7,14 +7,54 @@
             <q-icon name="description" size="sm" class="q-mr-xs" />
             File
           </template>
-          <q-list>
-            <q-item clickable v-close-popup @click="handleNew">
-              <q-item-section>New Script</q-item-section>
-            </q-item>
-          </q-list>
+          <q-list> </q-list>
         </q-btn-dropdown>
 
-        <q-space />
+        <!-- Text Formatting -->
+        <div class="q-gutter-sm q-ml-md">
+          <q-btn
+            v-for="(tool, key) in textTools"
+            :key="key"
+            flat
+            dense
+            size="sm"
+            :icon="tool.icon"
+            :class="{ 'text-primary': editor?.isActive(tool.command) }"
+            @click="tool.action"
+          >
+            <q-tooltip
+              >{{ tool.label }} ({{ modifierKey }}+{{
+                tool.shortcut
+              }})</q-tooltip
+            >
+          </q-btn>
+        </div>
+
+        <q-separator vertical inset class="q-mx-sm" />
+
+        <!-- Alignment -->
+        <div class="q-gutter-sm print:hidden">
+          <q-btn
+            v-for="(align, key) in alignTools"
+            :key="key"
+            flat
+            dense
+            size="sm"
+            :icon="align.icon"
+            :class="{
+              'text-primary': editor?.isActive({ textAlign: align.value }),
+            }"
+            @click="align.action"
+          >
+            <q-tooltip
+              >{{ align.label }} ({{ modifierKey }}+{{
+                align.shortcut
+              }})</q-tooltip
+            >
+          </q-btn>
+        </div>
+
+        <q-separator vertical inset class="q-mx-sm" />
 
         <q-btn-dropdown
           :label="currentBlockType.toLowerCase().replace('_', ' ')"
@@ -34,7 +74,9 @@
               <q-item-section>
                 {{ type.toLowerCase().replace("_", " ") }}
               </q-item-section>
-              <q-item-section side> Ctrl+{{ format.shortcut }} </q-item-section>
+              <q-item-section side
+                >{{ modifierKey }}+{{ format.shortcut }}</q-item-section
+              >
             </q-item>
           </q-list>
         </q-btn-dropdown>
@@ -48,7 +90,6 @@
         <div class="editor-page-container q-mx-auto q-my-lg">
           <q-card flat class="editor-page">
             <q-card-section>
-              <div class="page-number">1.</div>
               <editor-content :editor="editor" @keydown="handleKeyDown" />
             </q-card-section>
           </q-card>
@@ -62,8 +103,12 @@
           Enter for next element, Shift+Enter for new line
         </div>
         <q-space />
-        <q-btn flat dense icon="undo" @click="undo" :disable="!canUndo" />
-        <q-btn flat dense icon="redo" @click="redo" :disable="!canRedo" />
+        <q-btn flat dense icon="undo" @click="undo" :disable="!canUndo">
+          <q-tooltip>Undo ({{ modifierKey }}+Z)</q-tooltip>
+        </q-btn>
+        <q-btn flat dense icon="redo" @click="redo" :disable="!canRedo">
+          <q-tooltip>Redo ({{ modifierKey }}+Shift+Z)</q-tooltip>
+        </q-btn>
       </q-toolbar>
     </q-footer>
   </div>
@@ -75,7 +120,65 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
-import Text from "@tiptap/extension-text";
+import TextAlign from "@tiptap/extension-text-align";
+
+// Platform detection
+const isMac =
+  typeof navigator !== "undefined"
+    ? /Mac|iPod|iPhone|iPad/.test(navigator?.userAgent)
+    : false;
+const modifierKey = isMac ? "⌘" : "Ctrl";
+const modifierEvent = isMac ? "metaKey" : "ctrlKey";
+
+// Text formatting tools configuration
+const textTools = ref({
+  bold: {
+    icon: "format_bold",
+    command: "bold",
+    label: "Bold",
+    shortcut: "B",
+    action: () => editor.value?.chain().focus().toggleBold().run(),
+  },
+  italic: {
+    icon: "format_italic",
+    command: "italic",
+    label: "Italic",
+    shortcut: "I",
+    action: () => editor.value?.chain().focus().toggleItalic().run(),
+  },
+  strike: {
+    icon: "format_strikethrough",
+    command: "strike",
+    label: "Strikethrough",
+    shortcut: "S",
+    action: () => editor.value?.chain().focus().toggleStrike().run(),
+  },
+});
+
+// Alignment tools configuration
+const alignTools = ref({
+  left: {
+    icon: "format_align_left",
+    value: "left",
+    label: "Align Left",
+    shortcut: "L",
+    action: () => editor.value?.chain().focus().setTextAlign("left").run(),
+  },
+  center: {
+    icon: "format_align_center",
+    value: "center",
+    label: "Center",
+    shortcut: "E",
+    action: () => editor.value?.chain().focus().setTextAlign("center").run(),
+  },
+  right: {
+    icon: "format_align_right",
+    value: "right",
+    label: "Align Right",
+    shortcut: "R",
+    action: () => editor.value?.chain().focus().setTextAlign("right").run(),
+  },
+});
 
 const FORMATS = {
   SCENE_HEADING: {
@@ -140,24 +243,6 @@ const currentBlockType = ref("SCENE_HEADING");
 const canUndo = computed(() => editor.value?.can().undo() ?? false);
 const canRedo = computed(() => editor.value?.can().redo() ?? false);
 
-// Parenthetical validation function
-const validateParenthetical = (text) => {
-  if (!text) return "()";
-
-  let trimmed = text.trim();
-  if (!trimmed) return "()";
-
-  if (!trimmed.startsWith("(")) {
-    trimmed = "(" + trimmed;
-  }
-
-  if (!trimmed.endsWith(")")) {
-    trimmed = trimmed + ")";
-  }
-
-  return trimmed;
-};
-
 // Custom TipTap extensions
 const CustomDocument = Document.extend({
   content: "block+",
@@ -172,13 +257,21 @@ const CustomParagraph = Paragraph.extend({
         renderHTML: (attributes) => {
           const format = FORMATS[attributes.blockType];
           if (!format) return {};
-
           return {
             "data-block-type": attributes.blockType,
             class: format.className,
           };
         },
         keepOnSplit: false,
+      },
+      textAlign: {
+        default: null,
+        parseHTML: (element) => element.style.textAlign,
+        renderHTML: (attributes) => ({
+          style: attributes.textAlign
+            ? `text-align: ${attributes.textAlign}`
+            : null,
+        }),
       },
     };
   },
@@ -190,6 +283,16 @@ const CustomParagraph = Paragraph.extend({
 });
 
 // Initialize editor
+
+// Helper function to update current block type
+const updateCurrentBlockType = (editor) => {
+  const node = editor.state.selection.$head.parent;
+  const type = node.attrs.blockType;
+  if (type && type !== currentBlockType.value) {
+    currentBlockType.value = type;
+  }
+};
+
 const editor = useEditor({
   extensions: [
     CustomDocument,
@@ -198,46 +301,67 @@ const editor = useEditor({
         class: "editor-paragraph",
       },
     }),
-    Text,
     StarterKit.configure({
       document: false,
       paragraph: false,
+      bold: true,
+      italic: true,
+      text: true,
+      underline: true,
+    }),
+    TextAlign.configure({
+      types: ["paragraph"],
+      alignments: ["left", "center", "right"],
     }),
   ],
   content:
     '<p data-block-type="SCENE_HEADING" class="text-center uppercase font-bold"></p>',
   onUpdate: ({ editor }) => {
-    const node = editor.state.selection.$head.parent;
-    const type = node.attrs.blockType;
-    if (type && type !== currentBlockType.value) {
-      currentBlockType.value = type;
-    }
+    updateCurrentBlockType(editor);
+  },
+  onSelectionUpdate: ({ editor }) => {
+    updateCurrentBlockType(editor);
   },
 });
 
-// Methods
+// Parenthetical validation function
+const validateParenthetical = (text) => {
+  if (!text) return "()";
+  let trimmed = text.trim();
+  if (!trimmed) return "()";
+  if (!trimmed.startsWith("(")) trimmed = "(" + trimmed;
+  if (!trimmed.endsWith(")")) trimmed = trimmed + ")";
+  return trimmed;
+};
+
+// Block type management
 const changeBlockType = (type) => {
   if (!editor.value || !FORMATS[type]) return;
 
-  // Get current node and its text before changing type
+  // Get current node before changing block type
   const node = editor.value.state.selection.$head.parent;
   let text = node.textContent;
 
-  // Update the block type
+  // Update the block type first
   editor.value.commands.setNode("paragraph", { blockType: type });
 
   // If switching to parenthetical, validate/add parentheses
   if (type === "PARENTHETICAL") {
     const validatedText = validateParenthetical(text);
     if (validatedText !== text) {
-      editor.value
-        .chain()
-        .setTextSelection({
-          from: node.pos + 1,
-          to: node.pos + node.nodeSize - 1,
-        })
-        .insertContent(validatedText)
-        .run();
+      // Get the current position after changing block type
+      const currentNode = editor.value.state.selection.$head.parent;
+      const from = currentNode.pos + 1;
+      const to = currentNode.pos + currentNode.nodeSize - 1;
+
+      // Only set selection and insert content if positions are valid
+      if (from <= to && from >= 0) {
+        editor.value
+          .chain()
+          .setTextSelection({ from, to })
+          .insertContent(validatedText)
+          .run();
+      }
     }
   }
 
@@ -246,6 +370,32 @@ const changeBlockType = (type) => {
 
 const handleKeyDown = (e) => {
   if (!editor.value) return;
+
+  if (e[modifierEvent]) {
+    const shortcuts = {
+      b: () => editor.value.chain().focus().toggleBold().run(),
+      i: () => editor.value.chain().focus().toggleItalic().run(),
+      s: () => editor.value.chain().focus().toggleStrike().run(),
+      l: () => editor.value.chain().focus().setTextAlign("left").run(),
+      e: () => editor.value.chain().focus().setTextAlign("center").run(),
+      r: () => editor.value.chain().focus().setTextAlign("right").run(),
+      z: () => (!e.shiftKey ? undo() : redo()),
+    };
+
+    const shortcut = shortcuts[e.key.toLowerCase()];
+    if (shortcut) {
+      e.preventDefault();
+      shortcut();
+      return;
+    }
+
+    if (/^[1-9]$/.test(e.key)) {
+      e.preventDefault();
+      const type = Object.keys(FORMATS)[parseInt(e.key) - 1];
+      if (type) changeBlockType(type);
+      return;
+    }
+  }
 
   if (e.key === "Enter") {
     e.preventDefault();
@@ -274,53 +424,38 @@ const handleKeyDown = (e) => {
       }
     }
 
-    // If we're in a PARENTHETICAL block, validate parentheses before moving on
+    // Handle parenthetical validation
     if (currentType === "PARENTHETICAL") {
       const validatedText = validateParenthetical(node.textContent);
       if (validatedText !== node.textContent) {
-        editor.value
-          .chain()
-          .setTextSelection({
-            from: node.pos + 1,
-            to: node.pos + node.nodeSize - 1,
-          })
-          .insertContent(validatedText)
-          .run();
+        const from = node.pos + 1;
+        const to = node.pos + node.nodeSize - 1;
+
+        if (from <= to && from >= 0) {
+          editor.value
+            .chain()
+            .focus()
+            .setTextSelection({ from, to })
+            .insertContent(validatedText)
+            .run();
+        }
       }
     }
 
-    // Get next block type
+    // Get next block type and create new block
     const nextType = FORMATS[currentType].nextElement;
-
-    // First split the block
     editor.value.commands.splitBlock();
-
-    // Then immediately set the new block type
     editor.value.commands.setNode("paragraph", { blockType: nextType });
-
-    // Update the current block type
     currentBlockType.value = nextType;
-  } else if (e.key === "Tab") {
+  }
+
+  if (e.key === "Tab") {
     e.preventDefault();
     const types = Object.keys(FORMATS);
     const nextType =
       types[(types.indexOf(currentBlockType.value) + 1) % types.length];
     changeBlockType(nextType);
-  } else if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
-    e.preventDefault();
-    const type = Object.keys(FORMATS)[parseInt(e.key) - 1];
-    if (type) changeBlockType(type);
   }
-};
-
-const handleNew = () => {
-  editor.value
-    ?.chain()
-    .clearContent()
-    .setNode("paragraph", { blockType: "SCENE_HEADING" })
-    .focus()
-    .run();
-  currentBlockType.value = "SCENE_HEADING";
 };
 
 const undo = () => editor.value?.chain().focus().undo().run();
@@ -370,13 +505,6 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.page-number {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  color: #666;
-}
-
 .ProseMirror {
   font-family: "Courier New", Courier, monospace;
   font-size: 12pt;
@@ -384,6 +512,18 @@ onBeforeUnmount(() => {
   padding: 1rem;
   outline: none;
   min-height: calc(11in - 2rem);
+
+  strong {
+    font-weight: bold;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  u {
+    text-decoration: underline;
+  }
 
   p {
     margin: 0;
@@ -480,6 +620,74 @@ onBeforeUnmount(() => {
   .q-item-section {
     color: #333;
     text-transform: uppercase;
+  }
+}
+
+@media print {
+  @page {
+    size: 8.5in 11in;
+    margin: 0;
+  }
+
+  * {
+    visibility: hidden;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .editor-container {
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .q-header,
+  .q-footer,
+  .editor-scroll-area {
+    display: none !important;
+  }
+
+  .editor-page-container {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .editor-page {
+    visibility: visible !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 1in !important;
+    width: 8.5in !important;
+    min-height: 11in !important;
+  }
+
+  .editor-page *,
+  .ProseMirror,
+  .ProseMirror * {
+    visibility: visible !important;
+  }
+
+  .page-number {
+    color: #000 !important;
+  }
+}
+
+.print-only {
+  @media screen {
+    display: none !important;
+  }
+}
+
+.print\:hidden {
+  @media print {
+    display: none !important;
   }
 }
 </style>
