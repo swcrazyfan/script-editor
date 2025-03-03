@@ -1,126 +1,140 @@
 <template>
   <div class="editor-container">
-    <q-header class="bg-white text-dark">
-      <q-toolbar>
-        <q-btn-dropdown flat no-caps>
-          <template #label>
-            <q-icon name="description" size="sm" class="q-mr-xs" />
-            File
-          </template>
-          <q-list> </q-list>
-        </q-btn-dropdown>
+    <q-layout view="hHh LpR fFf">
+      <q-header class="bg-white text-dark">
+        <q-toolbar>
+          <q-btn-dropdown flat no-caps>
+            <template #label>
+              <q-icon name="description" size="sm" class="q-mr-xs" />
+              File
+            </template>
+            <q-list> </q-list>
+          </q-btn-dropdown>
 
-        <!-- Text Formatting -->
-        <div class="q-gutter-sm q-ml-md">
-          <q-btn
-            v-for="(tool, key) in textTools"
-            :key="key"
-            flat
-            dense
-            size="sm"
-            :icon="tool.icon"
-            :class="{ 'text-primary': editor?.isActive(tool.command) }"
-            @click="tool.action"
-          >
-            <q-tooltip
-              >{{ tool.label }} ({{ modifierKey }}+{{
-                tool.shortcut
-              }})</q-tooltip
+          <!-- Text Formatting -->
+          <div class="q-gutter-sm q-ml-md">
+            <q-btn
+              v-for="(tool, key) in textTools"
+              :key="key"
+              flat
+              dense
+              size="sm"
+              :icon="tool.icon"
+              :class="{ 'text-primary': editor?.isActive(tool.command) }"
+              @click="tool.action"
             >
-          </q-btn>
-        </div>
-
-        <q-separator vertical inset class="q-mx-sm" />
-
-        <!-- Alignment -->
-        <div class="q-gutter-sm print:hidden">
-          <q-btn
-            v-for="(align, key) in alignTools"
-            :key="key"
-            flat
-            dense
-            size="sm"
-            :icon="align.icon"
-            :class="{
-              'text-primary': editor?.isActive({ textAlign: align.value }),
-            }"
-            @click="align.action"
-          >
-            <q-tooltip
-              >{{ align.label }} ({{ modifierKey }}+{{
-                align.shortcut
-              }})</q-tooltip
-            >
-          </q-btn>
-        </div>
-
-        <q-separator vertical inset class="q-mx-sm" />
-
-        <q-btn-dropdown
-          :label="currentBlockType.toLowerCase().replace('_', ' ')"
-          class="text-capitalize"
-          flat
-          no-caps
-        >
-          <q-list>
-            <q-item
-              v-for="(format, type) in FORMATS"
-              :key="type"
-              clickable
-              v-close-popup
-              @click="changeBlockType(type)"
-              :active="currentBlockType === type"
-            >
-              <q-item-section>
-                {{ type.toLowerCase().replace("_", " ") }}
-              </q-item-section>
-              <q-item-section side
-                >{{ modifierKey }}+{{ format.shortcut }}</q-item-section
+              <q-tooltip
+                >{{ tool.label }} ({{ modifierKey }}+{{
+                  tool.shortcut
+                }})</q-tooltip
               >
-            </q-item>
-          </q-list>
-        </q-btn-dropdown>
+            </q-btn>
+          </div>
 
-        <q-space />
-      </q-toolbar>
-    </q-header>
+          <q-separator vertical inset class="q-mx-sm" />
 
-    <q-page-container>
-      <div class="editor-scroll-area q-pa-md">
-        <div class="editor-page-container q-mx-auto q-my-lg">
-          <q-card flat class="editor-page">
-            <q-card-section>
-              <editor-content :editor="editor" @keydown="handleKeyDown" />
-            </q-card-section>
-          </q-card>
+          <!-- Alignment -->
+          <div class="q-gutter-sm print:hidden">
+            <q-btn
+              v-for="(align, key) in alignTools"
+              :key="key"
+              flat
+              dense
+              size="sm"
+              :icon="align.icon"
+              :class="{
+                'text-primary': editor?.isActive({ textAlign: align.value }),
+              }"
+              @click="align.action"
+            >
+              <q-tooltip
+                >{{ align.label }} ({{ modifierKey }}+{{
+                  align.shortcut
+                }})</q-tooltip
+              >
+            </q-btn>
+          </div>
+
+          <q-separator vertical inset class="q-mx-sm" />
+
+          <q-btn-dropdown
+            :label="currentBlockType.toLowerCase().replace('_', ' ')"
+            class="text-capitalize"
+            flat
+            no-caps
+          >
+            <q-list>
+              <q-item
+                v-for="(format, type) in FORMATS"
+                :key="type"
+                clickable
+                v-close-popup
+                @click="changeBlockType(type)"
+                :active="currentBlockType === type"
+              >
+                <q-item-section>
+                  {{ type.toLowerCase().replace("_", " ") }}
+                </q-item-section>
+                <q-item-section side
+                  >{{ modifierKey }}+{{ format.shortcut }}</q-item-section
+                >
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+
+          <q-space />
+        </q-toolbar>
+      </q-header>
+
+      <q-page-container>
+        <div class="editor-scroll-area q-pa-md">
+          <div class="editor-page-container q-mx-auto q-my-lg">
+            <q-card flat class="editor-page">
+              <q-card-section>
+                <editor-content :editor="editor" @keydown="handleKeyDown" />
+              </q-card-section>
+            </q-card>
+          </div>
         </div>
-      </div>
-    </q-page-container>
+      </q-page-container>
 
-    <q-footer class="bg-white text-dark">
-      <q-toolbar>
-        <div class="text-caption q-mr-md">
-          Enter for next element, Shift+Enter for new line
-        </div>
-        <q-space />
-        <q-btn flat dense icon="undo" @click="undo" :disable="!canUndo">
-          <q-tooltip>Undo ({{ modifierKey }}+Z)</q-tooltip>
-        </q-btn>
-        <q-btn flat dense icon="redo" @click="redo" :disable="!canRedo">
-          <q-tooltip>Redo ({{ modifierKey }}+Shift+Z)</q-tooltip>
-        </q-btn>
-      </q-toolbar>
-    </q-footer>
+      <q-footer class="bg-white text-dark">
+        <q-toolbar>
+          <div class="text-caption q-mr-md">
+            Enter for next element, Shift+Enter for new line
+          </div>
+          <q-space />
+          <q-btn flat dense icon="undo" @click="undo" :disable="!canUndo">
+            <q-tooltip>Undo ({{ modifierKey }}+Z)</q-tooltip>
+          </q-btn>
+          <q-btn flat dense icon="redo" @click="redo" :disable="!canRedo">
+            <q-tooltip>Redo ({{ modifierKey }}+Shift+Z)</q-tooltip>
+          </q-btn>
+        </q-toolbar>
+      </q-footer>
+
+      <q-drawer show-if-above side="right" bordered>
+        <CharacterList />
+      </q-drawer>
+    </q-layout>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, watch } from "vue";
+import CharacterList from "./CharacterList.vue";
+import { ref, computed, onBeforeUnmount, watch, reactive } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import TextAlign from "@tiptap/extension-text-align";
+import { useBlockStore } from "../stores/block-store";
+
+// Store dialogue-character mapping and current character
+const dialogueMap = reactive(new Map()); // Map of dialogue node positions to character names
+const dialogueBlockIds = reactive(new Map()); // Map of dialogue node positions to block IDs
+const lastCharacter = ref(null);
+const lastCharacterBlockId = ref(null);
 
 // Platform detection
 const isMac =
@@ -282,14 +296,27 @@ const CustomParagraph = Paragraph.extend({
   },
 });
 
-// Initialize editor
-
 // Helper function to update current block type
 const updateCurrentBlockType = (editor) => {
   const node = editor.state.selection.$head.parent;
   const type = node.attrs.blockType;
   if (type && type !== currentBlockType.value) {
     currentBlockType.value = type;
+  }
+};
+
+// Track when dialogue blocks are removed
+const handleDeletedNode = (node) => {
+  if (node?.attrs.blockType === "DIALOGUE") {
+    const characterName = dialogueMap.get(node.pos);
+    const dialogueBlockId = dialogueBlockIds.get(node.pos);
+
+    if (characterName && dialogueBlockId) {
+      const blockStore = useBlockStore();
+      blockStore.removeBlock(dialogueBlockId);
+      dialogueMap.delete(node.pos);
+      dialogueBlockIds.delete(node.pos);
+    }
   }
 };
 
@@ -317,30 +344,74 @@ const editor = useEditor({
   content:
     '<p data-block-type="SCENE_HEADING" class="text-center uppercase font-bold"></p>',
   onUpdate: ({ editor }) => {
+    const previousType = currentBlockType.value;
     updateCurrentBlockType(editor);
+    const newType = currentBlockType.value;
+
+    // When a node changes from DIALOGUE to something else
+    const node = editor.state.selection.$head.parent;
+
+    // If node was deleted or changed from DIALOGUE to another type
+    if (
+      (previousType === "DIALOGUE" && newType !== "DIALOGUE") ||
+      (node?.attrs.blockType !== "DIALOGUE" && dialogueMap.has(node.pos))
+    ) {
+      const characterName = dialogueMap.get(node.pos);
+      if (characterName) {
+        dialogueMap.delete(node.pos);
+      }
+    }
   },
   onSelectionUpdate: ({ editor }) => {
     updateCurrentBlockType(editor);
   },
 });
 
-// Parenthetical validation function
-const validateParenthetical = (text) => {
-  if (!text) return "()";
-  let trimmed = text.trim();
-  if (!trimmed) return "()";
-  if (!trimmed.startsWith("(")) trimmed = "(" + trimmed;
-  if (!trimmed.endsWith(")")) trimmed = trimmed + ")";
-  return trimmed;
+// Save character when leaving CHARACTER block
+const saveCharacterIfNeeded = (node) => {
+  if (node?.attrs.blockType === "CHARACTER" && node.textContent?.trim()) {
+    const blockStore = useBlockStore();
+    const name = node.textContent.trim();
+    const blockId = blockStore.addBlock("CHARACTER", name);
+    lastCharacter.value = name;
+    lastCharacterBlockId.value = blockId;
+  }
 };
 
-// Block type management
+const handleDialogueBlock = (node) => {
+  if (lastCharacter.value && node) {
+    const blockStore = useBlockStore();
+    if (!dialogueMap.has(node.pos)) {
+      const dialogueBlockId = blockStore.addBlock(
+        "DIALOGUE",
+        node.textContent || "",
+        lastCharacterBlockId.value
+      );
+      dialogueBlockIds.set(node.pos, dialogueBlockId);
+      dialogueMap.set(node.pos, lastCharacter.value);
+    }
+  }
+};
+
 const changeBlockType = (type) => {
   if (!editor.value || !FORMATS[type]) return;
 
   // Get current node before changing block type
   const node = editor.value.state.selection.$head.parent;
   let text = node.textContent;
+
+  // If we're changing from DIALOGUE, decrement line count
+  if (node.attrs.blockType === "DIALOGUE") {
+    const characterName = dialogueMap.get(node.pos);
+    if (characterName) {
+      const characterStore = useCharacterStore();
+      characterStore.decrementLines(characterName);
+      dialogueMap.delete(node.pos);
+    }
+  }
+
+  // Save character if we're leaving a CHARACTER block
+  saveCharacterIfNeeded(node);
 
   // Update the block type first
   editor.value.commands.setNode("paragraph", { blockType: type });
@@ -366,6 +437,16 @@ const changeBlockType = (type) => {
   }
 
   currentBlockType.value = type;
+};
+
+// Parenthetical validation function
+const validateParenthetical = (text) => {
+  if (!text) return "()";
+  let trimmed = text.trim();
+  if (!trimmed) return "()";
+  if (!trimmed.startsWith("(")) trimmed = "(" + trimmed;
+  if (!trimmed.endsWith(")")) trimmed = trimmed + ")";
+  return trimmed;
 };
 
 const handleKeyDown = (e) => {
@@ -406,8 +487,17 @@ const handleKeyDown = (e) => {
     }
 
     const node = editor.value.state.selection.$head.parent;
+
+    // Save character if we're leaving a CHARACTER block
+    saveCharacterIfNeeded(node);
+
     const isEmpty = !node.textContent.trim();
     const currentType = currentBlockType.value;
+
+    // Handle empty dialogue - decrement line count
+    if (isEmpty && currentType === "DIALOGUE") {
+      handleDeletedNode(node);
+    }
 
     // Handle empty blocks
     if (isEmpty) {
@@ -447,13 +537,30 @@ const handleKeyDown = (e) => {
     editor.value.commands.splitBlock();
     editor.value.commands.setNode("paragraph", { blockType: nextType });
     currentBlockType.value = nextType;
+
+    // If we're creating a dialogue block, increment line count
+    if (nextType === "DIALOGUE") {
+      const newNode = editor.value.state.selection.$head.parent;
+      handleDialogueBlock(newNode);
+    }
   }
 
   if (e.key === "Tab") {
     e.preventDefault();
+    const node = editor.value.state.selection.$head.parent;
+    // Save character if we're leaving a CHARACTER block
+    saveCharacterIfNeeded(node);
+
     const types = Object.keys(FORMATS);
     const nextType =
       types[(types.indexOf(currentBlockType.value) + 1) % types.length];
+
+    // If we're creating a dialogue block, increment line count
+    if (nextType === "DIALOGUE") {
+      const newNode = editor.value.state.selection.$head.parent;
+      handleDialogueBlock(newNode);
+    }
+
     changeBlockType(nextType);
   }
 };
